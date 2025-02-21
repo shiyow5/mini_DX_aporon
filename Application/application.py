@@ -3,6 +3,7 @@
 import os
 import tkinter as tk
 from tkinter import filedialog
+import pandas as pd
 
 class Main_Win(tk.Frame):
     def __init__(self, master=None):
@@ -12,11 +13,11 @@ class Main_Win(tk.Frame):
         master.geometry("570x300")
         master.title("生産スケジューリング")
         
-        self.button_file = tk.Button(master, command=self.scheduling_window, text="スケジューリング", width=20)
-        self.button_file.place(x=285, y=30, anchor="center")
+        self.button_file = tk.Button(master, command=self.scheduling_window, text="スケジューリング", width=30, height=3)
+        self.button_file.place(x=285, y=100, anchor="center")
         
-        self.button_search = tk.Button(master, command=self.calc_window, text="統計計算", width=20)
-        self.button_search.place(x=285, y=70, anchor="center")
+        self.button_search = tk.Button(master, command=self.calc_window, text="統計計算", width=30, height=3)
+        self.button_search.place(x=285, y=200, anchor="center")
         
     def scheduling_window(self):
         self.newWindow1 = tk.Toplevel(self.master)
@@ -24,7 +25,7 @@ class Main_Win(tk.Frame):
         self.subapp_1.button_1["command"] = self.subapp_1_functions[0]
         self.subapp_1.button_2["command"] = self.subapp_1_functions[1]
         self.subapp_1.button_3["command"] = self.subapp_1_functions[2]
-        #self.subapp_1.button_4["command"] = self.subapp_1_functions[3]
+        self.subapp_1.button_4["command"] = self.subapp_1_functions[3]
         
     def calc_window(self):
         self.newWindow2 = tk.Toplevel(self.master)
@@ -78,9 +79,10 @@ class Scheduling_Win(tk.Frame):
         self.button_4.place(x=350, y=400)
         self.error_4 = tk.Label(master, text='エラー特になし', font=('Times New Roman',15), foreground = '#999999')
         self.error_4.place(x=20, y=500)
+        self.save_path = ""
         
-    def file_dialog(self, label_name):
-        fTyp = [("", "*")]
+    def file_dialog(self, label_name: str):
+        fTyp = [("Excel", ".xlsx")]
         iDir = os.path.abspath(os.path.dirname(__file__))
         file_name = filedialog.askopenfilename(filetypes=fTyp, initialdir=iDir)
         if len(file_name) != 0:
@@ -93,6 +95,19 @@ class Scheduling_Win(tk.Frame):
             elif label_name == 'error_3':
                 self.data3_path = file_name
                 self.error_3['text'] = file_name
+                
+    def file_save(self, save_data: pd.DataFrame):
+        file_name = filedialog.asksaveasfilename(
+            title = "名前を付けて保存",
+            filetypes = [("Excel", ".xlsx")], # ファイルフィルタ
+            initialdir = "./", # 自分自身のディレクトリ
+            defaultextension = ".xlsx"
+            )
+        if len(file_name) != 0:
+            self.save_path = file_name
+            self.error_4['text'] = file_name
+            
+        save_data.to_excel(file_name, sheet_name="sheet1")
 
 
 class Calc_Win(tk.Frame):
@@ -106,64 +121,6 @@ class Calc_Win(tk.Frame):
         
         master.geometry("1140x700")
         master.title("統計計算")
-        
-        self.label_1 = tk.Label(master, text="file select: ", font = ('Times New Roman',20))
-        self.label_1.place(x=20, y=30)
-        
-        self.file_name = tk.StringVar()
-        self.entry_file = tk.Entry(master, textvariable=self.file_name, font = ('Times New Roman',20), width = 10)
-        self.entry_file.place(x=150, y=30)
-        
-        self.button_1 = tk.Button(master, text = 'Add', width = 10)
-        self.button_1.place(x=300, y=32)
-        
-        self.file_error = tk.Label(master, font=('Times New Roman',15), foreground = '#999999')
-        self.file_error.place(x=160, y=70)
-        self.file_selected = tk.Label(master, font=('Times New Roman',15), foreground = '#999999')
-        self.file_selected.place(x=160, y=90)
-        
-        self.label_2 = tk.Label(master, text="search type: ", font = ('Times New Roman',20))
-        self.label_2.place(x=500, y=30)
-        
-        self.search_type = tk.StringVar()
-        self.entry_type = tk.Entry(master, textvariable=self.search_type, font = ('Times New Roman',20), width = 10)
-        self.entry_type.place(x=650, y=30)
-        
-        self.button_2 = tk.Button(master, text = 'OK', width = 10)
-        self.button_2.place(x=800, y=32)
-        
-        self.type_error = tk.Label(master, font=('Times New Roman',15), foreground = '#999999')
-        self.type_error.place(x=650, y=70)
-        self.type_selected = tk.Label(master, font=('Times New Roman',15), foreground = '#999999')
-        self.type_selected.place(x=650, y=90)
-        
-        self.label_3 = tk.Label(master, text="search word: ", font = ('Times New Roman',20))
-        self.label_3.place(x=20, y=130)
-        
-        self.word = tk.StringVar()
-        self.entry_search = tk.Entry(master, textvariable=self.word, font = ('Times New Roman',20), width = 33)
-        self.entry_search.place(x=200, y=130)
-        
-        self.button_3 = tk.Button(master, text = 'OK', width = 10)
-        self.button_3.place(x=680, y=132)
-        
-        self.results_c = [tk.Label(master, font=('Times New Roman',20), foreground = '#1155ee', width=10, anchor="center") for i in range(self.result_num)] # relief=tk.SOLID
-        for i, result_c in enumerate(self.results_c):
-            result_c.place(x=550, y=200+i*40, anchor="center")
-            
-        self.results_l = [tk.Label(master, font=('Times New Roman',20), width=30, anchor="e") for i in range(self.result_num)]
-        for i, result_l in enumerate(self.results_l):
-            result_l.place(x=450, y=200+i*40, anchor="e")
-            
-        self.results_r = [tk.Label(master, font=('Times New Roman',20), width=30, anchor="w") for i in range(self.result_num)]
-        for i, result_r in enumerate(self.results_r):
-            result_r.place(x=650, y=200+i*40, anchor="w")
-            
-        self.button_4 = tk.Button(master, text = 'Next', width = 10)
-        self.button_4.place(x=550, y=650, anchor="center")
-        
-        self.button_5 = tk.Button(master, text = 'Clear', width = 10, height=3)
-        self.button_5.place(x=1000, y=650, anchor="center")
 
     
 def main():
@@ -175,7 +132,12 @@ def main():
     set_data1 = lambda : app.subapp_1.file_dialog('error_1')
     set_data2 = lambda : app.subapp_1.file_dialog('error_2')
     set_data3 = lambda : app.subapp_1.file_dialog('error_3')
-    app.set_winController(winName='scheduling_window', functions=[set_data1, set_data2, set_data3])
+    def save_file():
+        df = pd.DataFrame([[11, 21, 31], [12, 22, 32], [31, 32, 33]],
+                  index=['one', 'two', 'three'], columns=['a', 'b', 'c'])
+        app.subapp_1.file_save(df)
+        
+    app.set_winController(winName='scheduling_window', functions=[set_data1, set_data2, set_data3, save_file])
     
     # Controller(Search Window)
         
