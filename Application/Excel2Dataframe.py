@@ -2,7 +2,10 @@ import pandas as pd
 import unicodedata
 
 def get_deadline(excel_path):
-    pass
+    df = pd.read_excel(excel_path)
+    df.columns = [pd.to_datetime(col, origin="1899-12-30", unit="D").date() if isinstance(col, (int, float)) else col for col in df.columns]
+    
+    return df
 
 def get_correspondence(excel_path):
     df = pd.read_excel(excel_path)
@@ -21,7 +24,7 @@ def get_correspondence(excel_path):
     return df
 
 def get_production_limit(excel_path):
-    pass
+    df = pd.read_excel(excel_path)
 
 
 def convert_half_to_full_katakana(text):
