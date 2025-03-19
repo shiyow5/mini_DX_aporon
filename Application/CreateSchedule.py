@@ -13,7 +13,7 @@ from Excel2Dataframe import get_deadline
 
 
 class Scheduling:
-    def __init__(self, order_data_path: str, ref_data_path: str = None, save_data_path: str = None):
+    def __init__(self, order_data_path: str, ref_data_path: str = None, save_data_path: str = None, sheet_name: str = None):
         ROOT_PATH = Path(__file__).resolve().parent.parent
         
         self.order_data_path: str = order_data_path
@@ -30,7 +30,7 @@ class Scheduling:
             self.save_data_path: str = os.path.join(ROOT_PATH, f"{filename}_schedule_{uuid.uuid4()}.xlsx")
         
         try:
-            self.order_data: pd.DataFrame = get_deadline(self.order_data_path)
+            self.order_data: pd.DataFrame = get_deadline(self.order_data_path, sheet_name=sheet_name)
         except Exception as e:
             raise Exception(f"注文データ抽出中にエラーが発生\n{e}")
         
@@ -59,7 +59,7 @@ class Scheduling:
             else:
                 miss_datas.append((row["製品規格名称"], row["名称2"]))
                 processing = None
-                new_rows = None
+                new_rows = []
         
             for date_col in date_columns:
                 value = row[date_col]
@@ -160,5 +160,3 @@ def test_usecase2():
     if miss_datas:
         for miss_data in miss_datas:
             print(f"製品名：{miss_data[0]}について、\n名称2：{miss_data[1]}が見つかりませんでした。")
-
-test_usecase2()

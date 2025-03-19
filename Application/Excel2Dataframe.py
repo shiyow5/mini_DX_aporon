@@ -1,9 +1,15 @@
 import pandas as pd
 import unicodedata
+import datetime
 
-def get_deadline(excel_path):
-    df = pd.read_excel(excel_path)
+def get_deadline(excel_path, sheet_name = None):
+    if sheet_name:
+        df = pd.read_excel(excel_path, sheet_name=sheet_name)
+    else:
+        df = pd.read_excel(excel_path)
+    
     df.columns = [pd.to_datetime(col, origin="1899-12-30", unit="D").date() if isinstance(col, (int, float)) else col for col in df.columns]
+    df.columns = [col.date() if isinstance(col, datetime.datetime) else col for col in df.columns]
     
     return df
 
@@ -40,6 +46,9 @@ def convert_half_to_full_katakana(text):
     # 全角への変換 (NFKC正規化)
     normalized_text = unicodedata.normalize('NFKC', text)
     return normalized_text
+
+def clean_name2(text):
+    ignore = ["トレー並べ", "計量", "梱包", "ダストヘラー"]
 
 # テスト
 if __name__ == "__main__":
