@@ -3,12 +3,13 @@ import pandas as pd
 import os
 import json
 from pathlib import Path
-from CreateSchedule import Scheduling
+from Application.CreateSchedule import Scheduling
+from Application.CalcPersonnel import Calculation
 
-# デフォルトの設定JSON（サンプル）
-ROOT_PATH = Path(__file__).resolve().parent.parent
-DEFAULT_SCHEDULE_PATH = os.path.join(ROOT_PATH, "Datas/production_create_description.json")
-DEFAULT_PERSONNEL_PATH = os.path.join(ROOT_PATH, "Datas/personnel_limit.json")  # 人数計算の設定ファイル
+
+# デフォルトの設定JSON
+DEFAULT_SCHEDULE_PATH = "Datas/production_create_description.json"  # スケジュール作成の設定ファイル
+DEFAULT_PERSONNEL_PATH = "Datas/personnel_limit.json"  # 人数計算の設定ファイル
 with open(DEFAULT_SCHEDULE_PATH, 'r', encoding='utf-8') as file:
     DEFAULT_SCHEDULE_CONFIG = json.load(file)
 with open(DEFAULT_PERSONNEL_PATH, 'r', encoding='utf-8') as file:
@@ -496,7 +497,7 @@ class PersonnelConfigView(ft.View):  # ft.View を継承するように修正
         """
         ダイアログから入力された情報に基づいて新しい設定項目を追加する
         """
-        new_key = self.new_key_field.value.strip()
+        new_key = self.new_key_field.value.strip().replace("（", "(").replace("）", ")")
         new_value = self.new_value_field.value.strip()
         if not new_key or new_key in self.config or not new_value:
             self.show_message("無効なキーまたは値です")
@@ -648,7 +649,7 @@ def main(page: ft.Page):
         if e.path:
             output_path = e.path
             try:
-                ps = Scheduling(order_data_path=file_path, save_data_path=output_path, sheet_name=sheet_name)
+                ps = Scheduling(order_data_path=file_path, ref_data_path=DEFAULT_SCHEDULE_PATH, save_data_path=output_path, sheet_name=sheet_name)
                 miss_datas = ps.create()
                 status.value = f"スケジュールを生成しました: {output_path}"
                 if miss_datas:
@@ -669,16 +670,12 @@ def main(page: ft.Page):
             status.value = "人数計算用のシート名を入力してください"
         else:
             try:
-                df = pd.read_excel(file_path, sheet_name=sheet_name)
-                # 仮の計算: "生産量"列が存在しない場合はデフォルト値1で計算
-                # 設定ファイルから係数を取得
-                for task, coefficient in personnel_config.items():
-                    if task in df.columns:
-                        df["必要人数_" + task] = df[task] / coefficient
-                # 必要に応じて合計を計算
-                df["必要人数"] = df[[col for col in df.columns if "必要人数_" in col]].sum(axis=1)
-                df.to_excel(file_path, index=False)
+                cl = Calculation(schedule_data_path=file_path, ref_limit_path=DEFAULT_PERSONNEL_PATH, ref_product_path=DEFAULT_SCHEDULE_PATH, sheet_name=sheet_name)
+                miss_datas = cl.calc()
                 status.value = f"人数計算を完了しました: {file_path}"
+                if miss_datas:
+                    miss_message = "\n".join([f"製品名：{miss_data[0]}、工程名：{miss_data[1]}" for miss_data in miss_datas])
+                    status.value += f"\n工程名が見つからない製品がありました↓\n{miss_message}"
             except Exception as ex:
                 status.value = f"エラーが発生しました（人数計算）: {str(ex)}"
         page.update()

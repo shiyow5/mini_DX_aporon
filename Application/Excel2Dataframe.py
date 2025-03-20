@@ -47,8 +47,28 @@ def convert_half_to_full_katakana(text):
     normalized_text = unicodedata.normalize('NFKC', text)
     return normalized_text
 
-def clean_name2(text):
-    ignore = ["トレー並べ", "計量", "梱包", "ダストヘラー"]
+def clean_name2(text: str):
+    ignores = ["トレー並べ", "計量", "梱包", "ダストヘラー"]
+    
+    text = convert_half_to_full_katakana(text)
+    word_list = [clean_name(word) for word in text.split("・")]
+    for ignore in ignores:
+        if ignore in word_list:
+            word_list.remove(ignore)
+    
+    return "・".join(word_list)
+        
+
+def clean_name(text: str):
+    text = convert_half_to_full_katakana(text)
+    text = text.replace("釦", "スパウト")
+    text = text.replace("ボタン", "スパウト")
+    text = text.replace("付け", "嵌め")
+    text = text.replace("トップキャップ", "キャップ")
+    #text = text.replace("ネジ嵌合・スパウト嵌め", "?")
+    
+    return text
+    
 
 # テスト
 if __name__ == "__main__":

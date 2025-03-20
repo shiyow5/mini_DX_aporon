@@ -9,7 +9,7 @@ import datetime
 from datetime import timedelta
 import openpyxl as xl
 from openpyxl.styles import PatternFill, Border, Side
-from Excel2Dataframe import get_deadline
+from Application.Excel2Dataframe import get_deadline, clean_name2
 
 
 class Scheduling:
@@ -51,6 +51,7 @@ class Scheduling:
         miss_datas = []
     
         for _, row in self.order_data.iterrows():
+            row["名称2"] = clean_name2(row["名称2"])
             base_row = {"製品規格名称": row["製品規格名称"], "名称2": row["名称2"], "工程名": None}
         
             if row["名称2"] in self.ref_data.keys():
@@ -77,6 +78,11 @@ class Scheduling:
             transformed_rows += new_rows
         
         df = pd.DataFrame(transformed_rows)
+        # 日付のカラムを日付順でソートする
+        date_columns = [col for col in df.columns if isinstance(col, datetime.date)]
+        date_columns = sorted(date_columns)
+        other_columns = [col for col in df.columns if col not in date_columns]
+        df = df[other_columns + date_columns]
         df.to_excel(self.save_data_path, index=False)
     
         return miss_datas
@@ -98,7 +104,8 @@ class Scheduling:
         for i, row in enumerate(ws, start=1):
             if i==1:
                 continue
-            color = self.ref_data[ws.cell(row = i, column = 2).value]["color"]
+            ref_description = self.ref_data.get(ws.cell(row = i, column = 2).value, None)
+            color = ref_description["color"] if ref_description else "c0c0c0"
             fill = PatternFill(patternType='solid', fgColor=color)
             
             for cell in row:
