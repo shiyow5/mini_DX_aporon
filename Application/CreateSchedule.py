@@ -73,7 +73,8 @@ class Scheduling:
                             #    new_rows[i]["名称2"] = None
                             for j in range(len(process_row)):
                                 now_day = date_col - timedelta(days=len(process_row)-j)
-                                new_rows[i][now_day] = process_row[j] * value if process_row[j]!=0 else None
+                                if process_row[j]!=0:
+                                    new_rows[i][now_day] = process_row[j] * value
                         
             transformed_rows += new_rows
         

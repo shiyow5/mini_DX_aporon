@@ -50,6 +50,10 @@ class Calculation:
             raise Exception(f"名称2参照データ抽出中にエラーが発生\n{e}")
     
     def basecalc(self):
+        required_columns = {"製品規格名称", "工程名"}
+        if not required_columns.issubset(self.schedule_data.columns):
+            raise ValueError(f"Missing required columns: {required_columns - set(self.schedule_data.columns)}")
+        
         date_columns = [col for col in self.schedule_data.columns if isinstance(col, datetime.date)]
         
         required_gaikan = pd.DataFrame([[0.0] * len(date_columns)], columns=date_columns)
@@ -80,6 +84,9 @@ class Calculation:
                 required_gaikan += (data_for_calc / limit) if limit else 0
             else:
                 required_other += (data_for_calc / limit) if limit else 0
+        
+        required_gaikan = required_gaikan.map(lambda num: float(f"{num:.1f}"))
+        required_other = required_other.map(lambda num: float(f"{num:.1f}"))
         
         required_gaikan["製品規格名称"] = "外観検査　必要人数"
         required_other["製品規格名称"] = "他　必要人数"
@@ -152,7 +159,7 @@ class Calculation:
     def reset_calc(self):
         df = self.schedule_data
         delete_row = (df["製品規格名称"]=="外観検査　必要人数") | (df["製品規格名称"]=="他　必要人数")
-        delete_row |= (df["製品規格名称"]=="欠勤") | (df["製品規格名称"]=="サンワ") | pd.isna(df["製品規格名称"])
+        delete_row |= (df["製品規格名称"]=="欠勤") | (df["製品規格名称"]=="サンワ") | pd.isna(df["製品規格名称"]) | pd.isna(df["工程名"])
         delete_row |= (df["製品規格名称"]=="合計") | (df["製品規格名称"]=="不足") | (df["製品規格名称"]=="従業員数")
         df = df[~delete_row]
         self.schedule_data = df

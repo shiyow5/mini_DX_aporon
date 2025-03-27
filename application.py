@@ -44,15 +44,13 @@ class ScheduleConfigView(ft.View):
             title="", content="", on_ok=None, on_cancel=None)
 
         # 新規キー入力用のコントロール
-        self.new_processing_rows = ft.TextField(label="Processing (例: [[1,0],[0,1]])", multiline=True, width=400)
-        self.new_description_json = ft.TextField(label="Description (例: {\"項目1\":[1,0], \"項目2\":[0,1]})", multiline=True, width=400)
+        self.new_description_json = ft.TextField(label="Description (例: {\"工程名1\":[1,0], \"工程名2\":[0,1]})", multiline=True, width=400)
         self.new_color_field = ft.TextField(label="色 (例: cc0000)", width=200)
         self.add_item_dialog = ft.AlertDialog(
             modal=True,
             title=ft.Text("新しい設定項目"),
             content=ft.Column([
                 self.new_key_field,
-                self.new_processing_rows,
                 self.new_description_json,
                 self.new_color_field,
             ], tight=True),
@@ -73,7 +71,6 @@ class ScheduleConfigView(ft.View):
         self.data_tables = {}  # リフレッシュ
         for key, value in self.config.items():
             self.data_tables[key] = {
-                "processing": self.create_data_table(key, "processing", value["processing"]),
                 "description": self.create_data_table(key, "description", value["description"]),
                 "color": ft.TextField(label="色 (例: cc0000)", value=value["color"], width=200),
             }
@@ -82,34 +79,7 @@ class ScheduleConfigView(ft.View):
         """
         DataTableを作成する
         """
-        if isinstance(data, list):  # processing の場合 (2次元配列)
-            # dataが空でないリストで、かつ最初の要素がリストであることを確認
-            if data and isinstance(data[0], list):
-                columns = [ft.DataColumn(ft.Text(f"列{i + 1}")) for i in range(len(data[0]))]  # 列の動的な生成
-            else:
-                # dataが空リストか、最初の要素がリストでない場合は、列がないDataTableを作成
-                columns = []
-            rows = []
-            for i, row_data in enumerate(data):
-                # row_data がリストであることを確認
-                if isinstance(row_data, list):
-                    cells = [ft.DataCell(ft.TextField(value=str(cell_value), width=70)) for cell_value in row_data]
-                    # セルの数が列の数より少ない場合に空のセルを追加
-                    while len(cells) < len(columns):
-                        cells.append(ft.DataCell(ft.TextField(value="", width=70)))
-                else:
-                    # row_data がリストでない場合は、エラーメッセージを表示するセルを作成
-                    cells = [ft.DataCell(ft.Text(f"Error: Invalid data format - {type(row_data)}"))]
-                rows.append(ft.DataRow(cells=cells))
-
-            return ft.DataTable(
-                columns=columns,
-                rows=rows,
-                width=500,
-                show_bottom_border=True,
-                heading_row_color=ft.Colors.GREY_200,
-            )
-        elif isinstance(data, dict):  # description の場合 (辞書)
+        if isinstance(data, dict):  # description の場合 (辞書)
             # 列を動的に生成
             # descriptionのvalueの中で最も要素数が多いリストの要素数に合わせて列を作成
             max_len = 0
@@ -117,8 +87,8 @@ class ScheduleConfigView(ft.View):
                 if isinstance(item_value, list):
                     max_len = max(max_len, len(item_value))
 
-            columns = [ft.DataColumn(ft.Text(f"列{i + 1}")) for i in range(max_len)]  # 列数をリストの最大長にする
-            columns.insert(0, ft.DataColumn(ft.Text("項目")))  # 最初の列に「項目」を追加
+            columns = [ft.DataColumn(ft.Text(f"{max_len-i}日前")) for i in range(max_len)]  # 列数をリストの最大長にする
+            columns.insert(0, ft.DataColumn(ft.Text("工程名")))  # 最初の列に「工程名」を追加
 
             rows = []
             for item_key, item_value in data.items():
@@ -202,7 +172,6 @@ class ScheduleConfigView(ft.View):
         新しい設定項目を追加する
         """
         self.new_key_field.value = ""  # 初期化
-        self.new_processing_rows.value = ""  # 初期化
         self.new_description_json.value = ""  # 初期化
         self.new_color_field.value = ""  # 初期化
         self.page.dialog = self.add_item_dialog
@@ -224,13 +193,10 @@ class ScheduleConfigView(ft.View):
             return
 
         try:
-            processing_data = json.loads(self.new_processing_rows.value)
             description_data = json.loads(self.new_description_json.value)
 
-            # processing_data の形式を検証
-            if not isinstance(processing_data, list) or not all(isinstance(row, list) for row in processing_data):
-                self.show_message("Processing の形式が無効です。リストのリストである必要があります。")
-                return
+            # Processingのデータを作成
+            processing_data = self.create_processing_from_description(description_data)
 
             # description_data の形式を検証
             if not isinstance(description_data, dict):
@@ -268,6 +234,13 @@ class ScheduleConfigView(ft.View):
         finally:
             self.page.update()
 
+    def create_processing_from_description(self, description_data):
+      """DescriptionデータからProcessingデータを生成する"""
+      processing_data = []
+      for item_key, item_value in description_data.items():
+        processing_data.append(item_value) # Descriptionのvalueをそのままprocessingにコピー
+      return processing_data
+
     def save_config(self, e):
         """
         DataTableのデータをJSON形式に変換して保存する
@@ -276,20 +249,6 @@ class ScheduleConfigView(ft.View):
         try:
             for key, value in self.data_tables.items():
                 new_config[key] = {}
-
-                # processing
-                processing_table = value["processing"]
-                processing_data = []
-                for row in processing_table.rows:
-                    row_data = []
-                    for cell in row.cells:
-                        try:
-                            row_data.append(int(cell.content.value))  # 数値に変換
-                        except ValueError:
-                            self.show_message(f"数値以外の値が入力されています: {key} - processing")
-                            return  # 保存を中断
-                    processing_data.append(row_data)
-                new_config[key]["processing"] = processing_data
 
                 # description
                 description_table = value["description"]
@@ -305,6 +264,11 @@ class ScheduleConfigView(ft.View):
                             return  # 保存を中断
                     description_data[item_key] = item_value_list
                 new_config[key]["description"] = description_data
+
+                # Processingのデータを作成
+                processing_data = self.create_processing_from_description(description_data)
+
+                new_config[key]["processing"] = processing_data
 
                 # color
                 new_config[key]["color"] = value["color"].value
@@ -334,8 +298,6 @@ class ScheduleConfigView(ft.View):
                     ft.IconButton(icon=ft.Icons.DELETE, on_click=delete_clicked,
                                   icon_color=ft.Colors.RED_500)  # ゴミ箱アイコン
                 ]),
-                ft.Text("Processing:", size=14),
-                value["processing"],
                 ft.Text("Description:", size=14),
                 ft.Column(controls=[value["description"]], scroll=ft.ScrollMode.AUTO,
                           height=200),  # DataTable を Column で囲み、スクロール可能にする
@@ -393,7 +355,7 @@ class PersonnelConfigView(ft.View):  # ft.View を継承するように修正
         設定に基づいてDataTableを構築する
         """
         columns = [
-            ft.DataColumn(ft.Text("項目")),
+            ft.DataColumn(ft.Text("工程名")),
             ft.DataColumn(ft.Text("1人あたりの日産数")),
             ft.DataColumn(ft.Text("")),  # 削除ボタン用の空の列
         ]
@@ -570,14 +532,27 @@ def main(page: ft.Page):
     page.title = "生産スケジュール管理アプリ"
     page.bgcolor = "#f4f4f4"
     page.padding = 20
-    
+
     # 初期ウィンドウサイズ(縦)を800に設定
     page.window.height = 800
 
     selected_file_schedule = ft.Text("ファイル未選択", size=14, color="gray")
-    sheet_name_input_schedule = ft.TextField(label="シート名を入力してください", width=300)
     selected_file_personnel = ft.Text("ファイル未選択", size=14, color="gray")
-    sheet_name_input_personnel = ft.TextField(label="シート名を入力してください", width=300)
+
+    # ここに関数 sheet_name_changed を定義します (スケジュール作成用)
+    def sheet_name_changed_schedule(e):
+        """ドロップダウンの選択が変更されたときの処理(スケジュール作成)"""
+        print(f"選択されたシート名 (スケジュール作成): {sheet_name_dropdown_schedule.value}")
+        page.update()
+
+    # ここに関数 sheet_name_changed を定義します (人数計算用)
+    def sheet_name_changed_personnel(e):
+        """ドロップダウンの選択が変更されたときの処理(人数計算)"""
+        print(f"選択されたシート名 (人数計算): {sheet_name_dropdown_personnel.value}")
+        page.update()
+
+    sheet_name_dropdown_schedule = ft.Dropdown(options=[], width=300, on_change=sheet_name_changed_schedule)  # ドロップダウンを追加
+    sheet_name_dropdown_personnel = ft.Dropdown(options=[], width=300, on_change=sheet_name_changed_personnel) # ドロップダウンを追加(人数計算用)
     status = ft.Text("", size=16, weight="bold", color="green")
 
     # 設定の保持
@@ -598,16 +573,55 @@ def main(page: ft.Page):
             json.dump(personnel_config, file, ensure_ascii=False, indent=4)
         print("人数計算設定更新:", personnel_config)
 
+    def get_sheet_names(file_path):
+        """Excelファイルからシート名を取得する"""
+        try:
+            excel_file = pd.ExcelFile(file_path)
+            return excel_file.sheet_names
+        except Exception as e:
+            print(f"Error reading Excel file: {e}")
+            return []
+
+    def update_sheet_name_dropdown_schedule(file_path):
+        """シート名のドロップダウンを更新する(スケジュール作成用)"""
+        sheet_names = get_sheet_names(file_path)
+        sheet_name_dropdown_schedule.options = [ft.dropdown.Option(name) for name in sheet_names]
+        if sheet_names:
+            sheet_name_dropdown_schedule.value = sheet_names[0]  # 最初のシートをデフォルトで選択
+        else:
+            sheet_name_dropdown_schedule.value = None  # シートがない場合はクリア
+        page.update()
+
+    def update_sheet_name_dropdown_personnel(file_path):
+        """シート名のドロップダウンを更新する(人数計算用)"""
+        sheet_names = get_sheet_names(file_path)
+        sheet_name_dropdown_personnel.options = [ft.dropdown.Option(name) for name in sheet_names]
+        if sheet_names:
+            sheet_name_dropdown_personnel.value = sheet_names[0]  # 最初のシートをデフォルトで選択
+        else:
+            sheet_name_dropdown_personnel.value = None  # シートがない場合はクリア
+        page.update()
+
     # ファイルピッカーの設定
     def on_file_selected_schedule(e: ft.FilePickerResultEvent):
         if e.files:
             selected_file_schedule.value = e.files[0].path
-            page.update()
+            update_sheet_name_dropdown_schedule(selected_file_schedule.value)  # シート名を更新
+        else:
+            selected_file_schedule.value = "ファイル未選択"
+            sheet_name_dropdown_schedule.options = []  # シート名選択肢をクリア
+            sheet_name_dropdown_schedule.value = None
+        page.update()
 
     def on_file_selected_personnel(e: ft.FilePickerResultEvent):
         if e.files:
             selected_file_personnel.value = e.files[0].path
-            page.update()
+            update_sheet_name_dropdown_personnel(selected_file_personnel.value) # シート名を更新
+        else:
+            selected_file_personnel.value = "ファイル未選択"
+            sheet_name_dropdown_personnel.options = [] # シート名選択肢をクリア
+            sheet_name_dropdown_personnel.value = None
+        page.update()
 
     # FilePickerインスタンスを生成
     file_picker_schedule = ft.FilePicker(on_result=on_file_selected_schedule)
@@ -624,11 +638,11 @@ def main(page: ft.Page):
     # スケジュール作成
     def generate_schedule(e):
         file_path = selected_file_schedule.value
-        sheet_name = sheet_name_input_schedule.value.strip()
+        sheet_name = sheet_name_dropdown_schedule.value  # ドロップダウンからシート名を取得
         if not file_path or not os.path.exists(file_path):
             status.value = "スケジュール作成用のファイルを選択してください"
         elif not sheet_name:
-            status.value = "スケジュール作成用のシート名を入力してください"
+            status.value = "スケジュール作成用のシートを選択してください"
         else:
             page.add(ft.Text("保存先を選択してください"))  # ファイルピッカーが表示されることを確認するためのテキスト
 
@@ -661,13 +675,14 @@ def main(page: ft.Page):
             status.value = "保存先が選択されませんでした"
         page.update()
 
+    # 人数計算
     def calculate_personnel(e):
         file_path = selected_file_personnel.value
-        sheet_name = sheet_name_input_personnel.value.strip()
+        sheet_name = sheet_name_dropdown_personnel.value  # ドロップダウンからシート名を取得
         if not file_path or not os.path.exists(file_path):
             status.value = "人数計算用のファイルを選択してください"
         elif not sheet_name:
-            status.value = "人数計算用のシート名を入力してください"
+            status.value = "人数計算用のシートを選択してください"
         else:
             try:
                 cl = Calculation(schedule_data_path=file_path, ref_limit_path=DEFAULT_PERSONNEL_PATH, ref_product_path=DEFAULT_SCHEDULE_PATH, sheet_name=sheet_name)
@@ -682,7 +697,7 @@ def main(page: ft.Page):
 
     # 使い方PDFを開く処理
     def open_usage_instructions(e):
-        pdf_path = "usage_instructions.pdf"  # PDFファイルのパス。環境に合わせて調整してください
+        pdf_path = "Datas/usage_instructions.pdf"  # PDFファイルのパス。
         page.launch_url(pdf_path)
 
     # 設定画面への遷移
@@ -729,7 +744,7 @@ def main(page: ft.Page):
                                     ft.Row(
                                         controls=[
                                             ft.ElevatedButton("ファイル選択", icon=ft.Icons.UPLOAD_FILE, on_click=lambda e: page.file_picker_schedule.pick_files(allow_multiple=False)),
-                                            sheet_name_input_schedule,
+                                            sheet_name_dropdown_schedule, # ドロップダウンに変更
                                         ],
                                         alignment=ft.MainAxisAlignment.CENTER,
                                     ),
@@ -741,7 +756,7 @@ def main(page: ft.Page):
                             padding=15,
                             bgcolor="white",
                             border_radius=10,
-                                                            shadow=ft.BoxShadow(blur_radius=5, spread_radius=2, color=ft.Colors.GREY_400),
+                            shadow=ft.BoxShadow(blur_radius=5, spread_radius=2, color=ft.Colors.GREY_400),
                         ),
                         ft.Divider(),
                         ft.Container(
@@ -752,7 +767,7 @@ def main(page: ft.Page):
                                     ft.Row(
                                         controls=[
                                             ft.ElevatedButton("ファイル選択", icon=ft.Icons.UPLOAD_FILE, on_click=lambda e: page.file_picker_personnel.pick_files(allow_multiple=False)),
-                                            sheet_name_input_personnel,
+                                            sheet_name_dropdown_personnel, # ドロップダウンに変更
                                         ],
                                         alignment=ft.MainAxisAlignment.CENTER,
                                     ),
