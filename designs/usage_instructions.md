@@ -8,7 +8,7 @@
 ## 2. アプリケーションの起動
 
 1.  以下のリンクからアプリケーションを**ダウンロード**してください。  
-    [Schedule Application Download link](https://github.com/shiyow5/mini_DX_aporon/releases/download/v1.0.0/schedule_application.zip) 👈
+    [Schedule Application Download link](https://github.com/shiyow5/mini_DX_aporon/releases/download/v1.0.1/schedule_application.zip) 👈
 
 2.  ダウンロードした**zipファイルを解凍**してください。
 
