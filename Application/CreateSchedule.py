@@ -102,16 +102,37 @@ class Scheduling:
             bottom=Side(style="thin")
         )
         
+        dashed_border = Border(
+            left=Side(style="dashed"), 
+            right=Side(style="dashed"), 
+            top=Side(style="dashed"), 
+            bottom=Side(style="dashed")
+        )
+        
+        # ヘッダー行（1行目）から日付のカラムを特定する
+        date_columns = {}
+        for cell in ws[1]:
+            if isinstance(cell.value, datetime.date):
+                # cell.column は数値の場合もあるのでそのままキーにする
+                date_columns[cell.column] = cell.value
+        
         for i, row in enumerate(ws, start=1):
             if i==1:
                 continue
             ref_description = self.ref_data.get(ws.cell(row = i, column = 2).value, None)
             color = ref_description["color"] if ref_description else "c0c0c0"
-            fill = PatternFill(patternType='solid', fgColor=color)
+            default_fill = PatternFill(patternType='solid', fgColor=color)
+            weekend_fill = PatternFill(patternType='solid', fgColor="BFBFBF")
             
             for cell in row:
+                header_date = date_columns.get(cell.column, None)
+                # 土日または祝日なら灰色にする
+                if header_date and header_date.weekday() >= 5:
+                    ws[cell.coordinate].fill = weekend_fill
+                    ws[cell.coordinate].border = dashed_border
+                # 数字が入っていれば対応した色で塗る
                 if isinstance(ws[cell.coordinate].value, (int, float)):
-                    ws[cell.coordinate].fill = fill
+                    ws[cell.coordinate].fill = default_fill
                     ws[cell.coordinate].border = thin_border
                     
         wb.save(self.save_data_path)
