@@ -1,1 +1,1 @@
-# mini_DX_aporon
+# Schedule Management Application
