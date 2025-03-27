@@ -697,7 +697,7 @@ def main(page: ft.Page):
 
     # 使い方PDFを開く処理
     def open_usage_instructions(e):
-        pdf_path = "https://github.com/shiyow5/mini_DX_aporon/blob/main/Datas/usage_instructions.pdf"  # PDFファイルのパス。
+        pdf_path = "https://shiyow5.github.io/mini_DX_aporon/usage_instructions.pdf"  # PDFファイルのパス。
         page.launch_url(pdf_path)
 
     # 設定画面への遷移
