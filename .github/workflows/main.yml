@@ -1,0 +1,63 @@
+name: Convert Markdown to PDF
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        wget https://github.com/jgm/pandoc/releases/download/3.5/pandoc-3.5-1-amd64.deb
+        sudo apt install ./pandoc-3.5-1-amd64.deb
+        sudo apt-get install -y texlive-xetex texlive-lang-japanese texlive-luatex
+        sudo apt-get install -y npm curl
+        npm install -g @mermaid-js/mermaid-cli
+        curl -o diagram.lua https://raw.githubusercontent.com/pandoc-ext/diagram/refs/heads/main/_extensions/diagram/diagram.lua
+
+    - name: Generate PDFs
+      run: |
+        mkdir -p pdfs
+        for file in designs/*.md; do
+          filename=$(basename -- "$file")
+          pdfname="${filename%.md}.pdf"
+          pandoc "$file" -o "pdfs/$pdfname" --pdf-engine=lualatex -V documentclass=ltjarticle -V geometry:margin=20mm --lua-filter=diagram.lua
+        done
+
+    - name: Move PDFs to docs
+      run: |
+        mkdir -p docs
+        mv pdfs/* docs/
+
+    - name: Generate index.html
+      run: |
+        echo '<html><body><h1>Generated PDFs</h1><ul>' > docs/index.html
+        for pdf in docs/*.pdf; do
+          filename=$(basename -- "$pdf")
+          echo "<li><a href=\"$filename\">$filename</a></li>" >> docs/index.html
+        done
+        echo '</ul></body></html>' >> docs/index.html
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+
+    - name: Upload Artifacts to GitHub Pages
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./docs
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
